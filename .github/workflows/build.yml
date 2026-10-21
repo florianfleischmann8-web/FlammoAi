@@ -15,86 +15,58 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Prepare and Compile with Maven
+    - name: Download Paper API and Build JAR
       run: |
-        mkdir -p src/main/java/de/flamosmp/ai
-        mkdir -p src/main/resources
-        if [ -f FlammoAI.java ]; then
-          mv FlammoAI.java src/main/java/de/flamosmp/ai/FlammoAI.java
-        fi
+        mkdir -p build/de/flamosmp/ai
+        
+        # Paper API & Gson herunterladen
+        wget -q -O paper.jar https://api.papermc.io/v2/projects/paper/versions/1.20.1/builds/196/downloads/paper-1.20.1-196.jar || true
+        wget -q -O gson.jar https://repo1.maven.org/maven2/com/google/code/gson/gson/2.10.1/gson-2.10.1.jar
 
-        cat << 'EOF' > src/main/resources/plugin.yml
-        name: FlamoAI
-        main: de.flamosmp.ai.FlamoAI
-        version: 1.0.0
-        api-version: '1.20'
-        author: Flamo SMP
-        description: KI-Assistent (Ollama) fuer Flamo SMP
-        commands:
-          ai:
-            description: Oeffnet den KI-Assistenten oder stellt direkt eine Frage
-            usage: /ai [frage]
-            permission: flamoai.use
-        permissions:
-          flamoai.use:
-            description: Darf den KI-Assistenten nutzen
-            default: true
-          flamoai.admin:
-            description: Darf Koordinaten und Block-Scans erfragen
-            default: op
-        EOF
+        # Java-Datei auffinden und kompilieren
+        JAVA_FILE=$(find . -name "FlammoAI.java" -o -name "FlamoAI.java" | head -n 1)
+        javac -cp "paper.jar:gson.jar" -d build "$JAVA_FILE"
 
-        cat << 'EOF' > src/main/resources/config.yml
-        ollama-url: "http://localhost:11434/api/chat"
-        model: "qwen2.5:7b"
-        timeout-seconds: 120
-        cooldown-seconds: 3
-        scan-radius: 16
-        disclaimer-seen: []
-        EOF
+        # Manifest & Ressourcen vorbereiten
+        cat << 'EOF' > plugin.yml
+name: FlamoAI
+main: de.flamosmp.ai.FlammoAI
+version: 1.0.0
+api-version: '1.20'
+author: Flamo SMP
+description: KI-Assistent (Ollama) fuer Flamo SMP
+commands:
+  ai:
+    description: Oeffnet den KI-Assistenten oder stellt direkt eine Frage
+    usage: /ai [frage]
+    permission: flamoai.use
+permissions:
+  flamoai.use:
+    description: Darf den KI-Assistenten nutzen
+    default: true
+  flamoai.admin:
+    description: Darf Koordinaten und Block-Scans erfragen
+    default: op
+EOF
 
-        cat << 'EOF' > pom.xml
-        <project xmlns="http://maven.apache.org/POM/4.0.0"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>de.flamosmp</groupId>
-            <artifactId>FlamoAI</artifactId>
-            <version>1.0.0</version>
-            <repositories>
-                <repository>
-                    <id>papermc</id>
-                    <url>https://repo.papermc.io/repository/maven-public/</url>
-                </repository>
-            </repositories>
-            <dependencies>
-                <dependency>
-                    <groupId>io.papermc.paper</groupId>
-                    <artifactId>paper-api</artifactId>
-                    <version>1.20.1-R0.1-SNAPSHOT</version>
-                    <scope>provided</scope>
-                </dependency>
-            </dependencies>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>3.8.1</version>
-                        <configuration>
-                            <source>17</source>
-                            <target>17</target>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </project>
-        EOF
+        cat << 'EOF' > config.yml
+ollama-url: "http://localhost:11434/api/chat"
+model: "qwen2.5:7b"
+timeout-seconds: 120
+cooldown-seconds: 3
+scan-radius: 16
+disclaimer-seen: []
+EOF
 
-        mvn clean package
+        cp plugin.yml build/
+        cp config.yml build/
+
+        # Fertiges JAR erstellen
+        cd build
+        jar -cf ../FlamoAI.jar .
 
     - name: Upload JAR Artifact
       uses: actions/upload-artifact@v4
       with:
         name: FlamoAI
-        path: target/*.jar
+        path: FlamoAI.jar
