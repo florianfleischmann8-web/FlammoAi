@@ -1,105 +1,100 @@
-name: Build Plugin JAR
-
-
-​on: [push, pull_request]
-
-
-​jobs:
-
-
-build:
-
-
-runs-on: ubuntu-latest
-
-
-​steps:
-
-
-- name: Repository auschecken
-
-
-uses: actions/checkout@v4
-
-
-​- name: Java 17 einrichten
-
-
-uses: actions/setup-java@v4
-
-
-with:
-
-
-distribution: 'temurin'
-
-
-java-version: '17'
-
-
-​- name: Paper API herunterladen und kompilieren
-
-
-run: |
-
-
-mkdir build_temp
-
-
-cd build_temp
-
-
-curl -s -o paper-api.jar "https://repo.papermc.io/repository/maven-public/io/papermc/paper/paper-api/1.20.1-R0.1-SNAPSHOT/paper-api-1.20.1-R0.1-20230811.121508-158.jar"
-
-
-​# Ordnerstruktur für Package de.flamosmp.ai erstellen
-
-
-mkdir -p de/flamosmp/ai
-
-
-cp ../FlammoAI.java de/flamosmp/ai/
-
-
-​# Java-Datei kompilieren
-
-
-javac -cp paper-api.jar de/flamosmp/ai/FlammoAI.java
-
-
-​# minimales plugin.yml erstellen
-
-
-echo "name: FlammoAI" > plugin.yml
-
-
-echo "version: 1.0" >> plugin.yml
-
-
-echo "main: de.flamosmp.ai.FlammoAI" >> plugin.yml
-
-
-echo "api-version: 1.20" >> plugin.yml
-
-
-​# JAR-Datei verpacken
-
-
-jar cvf ../FlammoAI.jar plugin.yml de/flamosmp/ai/*.class
-
-
-​- name: Fertige JAR-Datei als Artefakt bereitstellen
-
-
-uses: actions/upload-artifact@v4
-
-
-with:
-
-
-name: FlammoAI
-
-
-path: FlammoAI.jar
-
-
+name: Build Minecraft Plugin
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Java 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Prepare and Compile with Maven
+      run: |
+        mkdir -p src/main/java/de/flamosmp/ai
+        mkdir -p src/main/resources
+        if [ -f FlammoAI.java ]; then
+          mv FlammoAI.java src/main/java/de/flamosmp/ai/FlammoAI.java
+        fi
+
+        cat << 'EOF' > src/main/resources/plugin.yml
+        name: FlamoAI
+        main: de.flamosmp.ai.FlamoAI
+        version: 1.0.0
+        api-version: '1.20'
+        author: Flamo SMP
+        description: KI-Assistent (Ollama) fuer Flamo SMP
+        commands:
+          ai:
+            description: Oeffnet den KI-Assistenten oder stellt direkt eine Frage
+            usage: /ai [frage]
+            permission: flamoai.use
+        permissions:
+          flamoai.use:
+            description: Darf den KI-Assistenten nutzen
+            default: true
+          flamoai.admin:
+            description: Darf Koordinaten und Block-Scans erfragen
+            default: op
+        EOF
+
+        cat << 'EOF' > src/main/resources/config.yml
+        ollama-url: "http://localhost:11434/api/chat"
+        model: "qwen2.5:7b"
+        timeout-seconds: 120
+        cooldown-seconds: 3
+        scan-radius: 16
+        disclaimer-seen: []
+        EOF
+
+        cat << 'EOF' > pom.xml
+        <project xmlns="http://maven.apache.org/POM/4.0.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>de.flamosmp</groupId>
+            <artifactId>FlamoAI</artifactId>
+            <version>1.0.0</version>
+            <repositories>
+                <repository>
+                    <id>papermc</id>
+                    <url>https://repo.papermc.io/repository/maven-public/</url>
+                </repository>
+            </repositories>
+            <dependencies>
+                <dependency>
+                    <groupId>io.papermc.paper</groupId>
+                    <artifactId>paper-api</artifactId>
+                    <version>1.20.1-R0.1-SNAPSHOT</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.8.1</version>
+                        <configuration>
+                            <source>17</source>
+                            <target>17</target>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </project>
+        EOF
+
+        mvn clean package
+
+    - name: Upload JAR Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: FlamoAI
+        path: target/*.jar
