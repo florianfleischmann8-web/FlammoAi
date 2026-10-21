@@ -1,25 +1,105 @@
-name: Build Minecraft Plugin
+name: Build Plugin JAR
 
-on: [push, pull_request]
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Repository auschecken
-      uses: actions/checkout@v4
+​on: [push, pull_request]
 
-    - name: Java 17 einrichten
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
 
-    - name: Mit Maven bauen
-      run: mvn clean package
+​jobs:
 
-    - name: JAR-Datei hochladen
-      uses: actions/upload-artifact@v4
-      with:
-        name: FlamoAI
-        path: target/*.jar
+
+build:
+
+
+runs-on: ubuntu-latest
+
+
+​steps:
+
+
+- name: Repository auschecken
+
+
+uses: actions/checkout@v4
+
+
+​- name: Java 17 einrichten
+
+
+uses: actions/setup-java@v4
+
+
+with:
+
+
+distribution: 'temurin'
+
+
+java-version: '17'
+
+
+​- name: Paper API herunterladen und kompilieren
+
+
+run: |
+
+
+mkdir build_temp
+
+
+cd build_temp
+
+
+curl -s -o paper-api.jar "https://repo.papermc.io/repository/maven-public/io/papermc/paper/paper-api/1.20.1-R0.1-SNAPSHOT/paper-api-1.20.1-R0.1-20230811.121508-158.jar"
+
+
+​# Ordnerstruktur für Package de.flamosmp.ai erstellen
+
+
+mkdir -p de/flamosmp/ai
+
+
+cp ../FlammoAI.java de/flamosmp/ai/
+
+
+​# Java-Datei kompilieren
+
+
+javac -cp paper-api.jar de/flamosmp/ai/FlammoAI.java
+
+
+​# minimales plugin.yml erstellen
+
+
+echo "name: FlammoAI" > plugin.yml
+
+
+echo "version: 1.0" >> plugin.yml
+
+
+echo "main: de.flamosmp.ai.FlammoAI" >> plugin.yml
+
+
+echo "api-version: 1.20" >> plugin.yml
+
+
+​# JAR-Datei verpacken
+
+
+jar cvf ../FlammoAI.jar plugin.yml de/flamosmp/ai/*.class
+
+
+​- name: Fertige JAR-Datei als Artefakt bereitstellen
+
+
+uses: actions/upload-artifact@v4
+
+
+with:
+
+
+name: FlammoAI
+
+
+path: FlammoAI.jar
+
+
