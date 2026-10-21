@@ -1,0 +1,25 @@
+name: Build Minecraft Plugin
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Repository auschecken
+      uses: actions/checkout@v4
+
+    - name: Java 17 einrichten
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Mit Maven bauen
+      run: mvn clean package
+
+    - name: JAR-Datei hochladen
+      uses: actions/upload-artifact@v4
+      with:
+        name: FlamoAI
+        path: target/*.jar
